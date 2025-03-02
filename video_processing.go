@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os/exec"
 )
 
@@ -89,7 +90,8 @@ type FFProbeResult struct {
 }
 
 func getVideoAspectRatio(filepath string) (string, error) {
-	cmd := exec.Command("ffprobe", "v", "error", "-print-format", "json", "-show_streams", filepath)
+	fmt.Println(filepath)
+	cmd := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_streams", filepath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
@@ -110,11 +112,21 @@ func getVideoAspectRatio(filepath string) (string, error) {
 	aspect_ratio := height / width
 
 	if aspect_ratio > portrait_ratio-0.2 && aspect_ratio < portrait_ratio+0.2 {
-		return "9:16", nil
+		return "video/landscape/", nil
 	}
 	if aspect_ratio > landscape_ratio-0.2 && aspect_ratio < landscape_ratio+0.2 {
-		return "16:9", nil
+		return "video/portrait/", nil
 	}
 
-	return "other", nil
+	return "video/other/", nil
+}
+
+func processVideoForFastStart(filepath string) (string, error) {
+	output_path := filepath + ".processing"
+	cmd := exec.Command("ffmpeg", "-i", filepath, "-c", "copy", "-movflags", "faststart", "-f", "mp4", output_path)
+	err := cmd.Run()
+	if err != nil {
+		return "", nil
+	}
+	return output_path, nil
 }
