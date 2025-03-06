@@ -38,7 +38,6 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	const maxMemory = 1 << 30
 	video, err := cfg.db.GetVideo(videoID)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Could not get Video metadata", err)
@@ -85,13 +84,13 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 
 	processed_path, err := processVideoForFastStart(temp_file.Name())
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Unable to process video for fast start", err)
+		respondWithError(w, http.StatusInternalServerError, "Unable to process video for fast start", err)
 		return
 	}
 
 	processed_temp_file, err := os.Open(processed_path)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "unable to open processed file", err)
+		respondWithError(w, http.StatusInternalServerError, "unable to open processed file", err)
 		return
 	}
 
@@ -100,7 +99,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 
 	aspect_ratio, err := getVideoAspectRatio(temp_file.Name())
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Could not generate aspect ratio", err)
+		respondWithError(w, http.StatusInternalServerError, "Could not generate aspect ratio", err)
 	}
 
 	processed_temp_file.Seek(0, io.SeekStart)
@@ -118,13 +117,11 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		ContentType: aws.String(media_type),
 	})
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Unable to upload object.", err)
+		respondWithError(w, http.StatusInternalServerError, "Unable to upload object to s3", err)
 		return
 	}
 
-	fmt.Printf("Updated video in database: %+v", video)
-	video_url := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, video_name)
-
+	video_url := fmt.Sprintf("%s/%s", cfg.s3CfDistribution, video_name)
 	video.VideoURL = &video_url
 	err = cfg.db.UpdateVideo(video)
 	if err != nil {
